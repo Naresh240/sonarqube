@@ -73,3 +73,6 @@ Server authentication token: (Create secret text with authentication token)
 ![image](https://user-images.githubusercontent.com/68885738/90911197-3cd0d380-e3f6-11ea-8b9e-27ff41492e4a.png)
 
 Click on "SonarQube" and check details
+
+# Call sonar-scanner file
+    sonar-scanner -Dproject.settings=./sonar-project.properties
