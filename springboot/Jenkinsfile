@@ -1,32 +1,56 @@
 pipeline{
-    agent any
-    tools {
-        maven 'maven3'
-    }
-    stages{
-        stage("SCM"){
+    agent none
+	environment {
+		registry = 'naresh240/springboothello:latest'
+		registryCredentials = 'docker_credentials'
+		dockerImage = ''
+	}    
+    stages {
+        stage('git checkout'){
+            agent any
             steps{
-                git 'https://github.com/cloudtechmasters/sonarqube.git'
+                git branch: 'main',
+                url: 'https://github.com/Naresh240/sonarqube.git'
             }
         }
-        stage("Build Artifact") {
-            steps{
-                sh "mvn clean package"
+        stage('Example Build') {
+            agent { docker 'maven:3-alpine' } 
+            steps {
+                dir('springboot'){
+                    echo 'Hello, Maven'
+                    sh 'mvn clean install'
+                }
             }
         }
         stage("Deploy to Sonar") {
+            agent any
             steps{
-                withSonarQubeEnv(installationName: 'sonar-scanner', credentialsId: 'sonar-token') {
-                    sh "${ tool ("sonar-scanner")}/sonar-scanner -Dsonar.projectKey=hellospringboot -Dsonar.projectName=hellospringboot -Dsonar.sourceEncoding=UTF-8 -Dsonar.sources=src"
+                dir('springboot'){ 
+                    withSonarQubeEnv(installationName: 'sonarqube', credentialsId: 'sonar-token') {
+                        sh "${ tool ("sonar-scanner")}/sonar-scanner -Dsonar.projectKey=hellospringboot -Dsonar.projectName=hellospringboot -Dsonar.sourceEncoding=UTF-8 -Dsonar.sources=src"
+                    }
                 }
             }
         }
-	stage("Quality Gate") {
+        stage ('Build Docker Image') {
+            agent any
             steps {
-              timeout(time: 1, unit: 'HOURS') {
-                waitForQualityGate abortPipeline: true
+                dir('springboot'){                
+                    script {
+                        dockerImage = docker.build registry
+                    }
                 }
             }
         }
+        stage ('Docker Push') {
+            agent any
+            steps {
+                script {
+                    docker.withRegistry('',registryCredentials) {
+                        dockerImage.push()
+                    }
+                }
+            }
+        }        
     }
 }
